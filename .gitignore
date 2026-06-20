@@ -7,9 +7,10 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
-ton_fichier.csv
-listingsParis.csv
-data/
-data/
 .env
+.venv
+data/
+listingsParis.csv
+docs/
+cols_airbnb.csv
+
