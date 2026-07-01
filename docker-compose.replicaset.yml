@@ -1,0 +1,56 @@
+services:
+  mongo1:
+    container_name: container-mongo1
+    image: mongo:8
+    healthcheck:
+      start_period: 10s
+      test: ["CMD", "mongosh", "--eval","db.runCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: 
+      - replicaset_network
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_1_rep:/data/db
+      - mongo_1_config:/data/configdb
+  mongo2:
+    container_name: container-mongo2
+    image: mongo:8
+    networks: 
+      - replicaset_network
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    ports:
+      - "27018:27018"
+    volumes:
+      - mongo_2_rep:/data/db
+      - mongo_2_config:/data/configdb
+  mongo3:
+    container_name: container-mongo3
+    image: mongo:8
+    networks: 
+      - replicaset_network
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
+    ports:
+      - "27019:27019"
+    volumes:
+      - mongo_3_rep:/data/db
+      - mongo_3_config:/data/configdb
+volumes:
+  mongo_1_rep:
+    name: mongo-1-rep
+  mongo_1_config:
+    name: mongo-1-config
+  mongo_2_rep:
+    name: mongo-2-rep
+  mongo_2_config:
+    name: mongo-2-config
+  mongo_3_rep:
+    name: mongo-3-rep
+  mongo_3_config:
+    name: mongo-3-config
+networks :
+  replicaset_network:
+    name: replicaset-network
