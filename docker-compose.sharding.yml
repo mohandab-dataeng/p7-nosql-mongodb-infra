@@ -1,0 +1,122 @@
+# Configuration des serveurs
+services:
+  config_svr_1:
+    image: mongo:8 
+    command: ["--configsvr","--replSet","configRS","--bind_ip_all", "--port","27019"]
+    ports: 
+      - "27019:27019"
+    volumes:
+      - config_svr_1:/data/db
+      - srv_1_config:/data/configdb
+    networks :
+      - sharding_network  
+
+  config_svr_2:
+    image: mongo:8 
+    command: ["--configsvr","--replSet","configRS","--bind_ip_all", "--port","27020"]
+    ports: 
+      - "27020:27020"
+    volumes:
+      - config_svr_2:/data/db
+      - srv_2_config:/data/configdb
+    networks :
+      - sharding_network
+
+  config_svr_3:
+    image: mongo:8 
+    command: ["--configsvr","--replSet","configRS","--bind_ip_all", "--port","27021"]
+    ports: 
+      - "27021:27021"
+    volumes:
+      - config_svr_3:/data/db
+      - srv_3_config:/data/configdb
+    networks :
+      - sharding_network
+
+# Configuration des shards
+  shard_1:
+    image: mongo:8 
+    command: ["--shardsvr","--replSet","shard1RS","--bind_ip_all","--port","27031"]
+    ports: 
+      - "27031:27031"
+    volumes:
+      - shard_1:/data/db
+      - shard_1_config:/data/configdb
+    networks :
+      - sharding_network
+
+  shard_2:
+    image: mongo:8 
+    command: ["--shardsvr","--replSet","shard2RS","--bind_ip_all","--port","27032"]
+    ports: 
+      - "27032:27032"
+    volumes:
+      - shard_2:/data/db
+      - shard_2_config:/data/configdb
+    networks :
+      - sharding_network
+
+# Configuration du routeur
+  mongos:
+    image: mongo:8
+    entrypoint: mongos
+    command: ["--configdb", "configRS/config_svr_1:27019,config_svr_2:27020,config_svr_3:27021", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    networks:
+      - sharding_network
+
+# Init automatique
+  init:
+    image: mongo:8
+    depends_on:
+      - config_svr_1
+      - config_svr_2
+      - config_svr_3
+      - shard_1
+      - shard_2
+      - mongos
+    volumes:
+      - ./init-sharding.sh:/init-sharding.sh:ro
+    entrypoint: bash
+    command: ["/init-sharding.sh"]
+    restart: "no"
+    networks:
+      - sharding_network
+# Chargement du script et de la base
+  etl:
+    build: .
+    depends_on:
+      - init
+    environment:
+      - MONGO_URI=mongodb://mongos:27017
+    networks:
+      - sharding_network
+
+# Settings docker
+volumes:
+  config_svr_1:
+    name: config-1-srv
+  srv_1_config:
+    name: srv-1-config
+  srv_2_config:
+    name: srv-2-config
+  config_svr_2:
+    name: config-2-srv
+  config_svr_3:
+    name: config-3-srv
+  srv_3_config:
+    name: srv-3-config
+
+  shard_1:
+    name: shard-1
+  shard_1_config:
+    name: shard-1-config
+  shard_2:
+    name: shard-2
+  shard_2_config:
+    name: shard-2-config
+
+networks :
+  sharding_network:
+    name: sharding-network
