@@ -1,0 +1,280 @@
+# --- CLUSTER "nocites" ---
+# Architecture : 3 config servers répliquées +
+#                2 shards (Paris et Lyon = x2 rs + 1 arb)
+#                1 routeur
+#                1 init.sh (bash)
+#                1 pipeline (python)
+
+# --- Service de configuration de la table de routage (db>shard) et de ses replicaset(x2) ---
+
+services:
+
+# 1
+    cfg_svr_1:
+        image: mongo:8
+        command: >
+            --configsvr
+            --replSet configRS
+            --bind_ip_all
+            --port 27018
+        ports:
+            - "27018:27018"
+        volumes:
+            - cfg_svr_1_v:/data/db
+            - cfg_svr_1_vcfg:/data/configdb
+        networks :
+            - noscites_network
+
+# 2
+    cfg_svr_2:
+        image: mongo:8
+        command: >
+            --configsvr
+            --replSet configRS
+            --bind_ip_all
+            --port 27019
+        ports:
+            - "27019:27019"
+        volumes:
+            - cfg_svr_2_v:/data/db
+            - cfg_svr_2_vcfg:/data/configdb
+        networks :
+            - noscites_network
+
+# 3
+    cfg_svr_3:
+        image: mongo:8
+        command: >
+            --configsvr
+            --replSet configRS
+            --bind_ip_all
+            --port 27020
+        ports:
+            - "27020:27020"
+        volumes:
+            - cfg_svr_3_v:/data/db
+            - cfg_svr_3_vcfg:/data/configdb
+        networks :
+            - noscites_network
+
+# --- SHARD 1 Paris - shardParis x2 noeuds rs + 1 arbitre ---
+
+# Noeud 1
+    shardParis_node1:
+        image: mongo:8
+        container_name: shardParis_node1
+        command: >
+            --shardsvr
+            --replSet shardParisRS
+            --bind_ip_all
+            --port 27031
+        ports:
+            - "27031:27031"
+        volumes:
+            - shardParis_node1_v:/data/db
+            - shardParis_node1_vcfg:/data/configdb
+        networks:
+            - noscites_network
+
+# Noeud 2
+    shardParis_node2:
+        image: mongo:8
+        container_name: shardParis_node2
+        command: >
+            --shardsvr
+            --replSet shardParisRS
+            --bind_ip_all
+            --port 27032
+        ports:
+            - "27032:27032"
+        volumes:
+            - shardParis_node2_v:/data/db
+            - shardParis_node2_vcfg:/data/configdb
+        networks:
+            - noscites_network
+
+# Arbitre votant pour le noeud 1 ou 2
+    shardParis_arbiter:
+        image: mongo:8
+        container_name: shardParis-arbiter
+        command: >
+            --shardsvr
+            --replSet shardParisRS
+            --bind_ip_all
+            --port 27033
+        ports:
+            - "27033:27033"
+        volumes:
+            - shardParis_arbiter_v:/data/db
+        networks:
+            - noscites_network
+
+# --- SHARD 2 Lyon - shardLyon x2 noeuds rs + 1 arbitre ---
+
+# Noeud 1
+    shardLyon_node1:
+        image: mongo:8
+        container_name: shardLyon_node1
+        command: >
+            --shardsvr
+            --replSet shardLyonRS
+            --bind_ip_all
+            --port 27041
+        ports:
+            - "27041:27041"
+        volumes:
+            - shardLyon_node1_v:/data/db
+            - shardLyon_node1_vcfg:/data/configdb
+        networks:
+            - noscites_network
+
+# Noeud 2
+    shardLyon_node2:
+        image: mongo:8
+        container_name: shardLyon_node2
+        command: >
+            --shardsvr
+            --replSet shardLyonRS
+            --bind_ip_all
+            --port 27042
+        ports:
+            - "27042:27042"
+        volumes:
+            - shardLyon_node2_v:/data/db
+            - shardLyon_node2_vcfg:/data/configdb
+        networks:
+            - noscites_network
+
+# Arbitre votant pour le noeud 1 ou 2
+    shardLyon_arbiter:
+        image: mongo:8
+        container_name: shardLyon_arbiter
+        command: >
+            --shardsvr
+            --replSet shardLyonRS
+            --bind_ip_all
+            --port 27043
+        ports:
+            - "27043:27043"
+        volumes:
+            - shardLyon_arbiter_v:/data/db
+        networks:
+            - noscites_network
+
+# --- ROUTEUR (27017): redirige les requetes vers le bon shard ---
+
+    mongos:
+        image: mongo:8
+        healthcheck:
+        test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping')"]
+        interval: 10s
+        timeout: 5s
+        start_period: 15s
+        retries: 5
+        container_name: nocites_router
+        entrypoint: mongos
+        command: >
+            --configdb configRS/cfg_svr_1:27018,cfg_svr_2:27019,cfg_svr_3:27020
+            --bind_ip_all
+            --port 27017
+        ports:
+            - "27017:27017"
+        depends_on:
+            - cfg_svr_1
+            - cfg_svr_2
+            - cfg_svr_3
+        networks:
+            - noscites_network
+
+# --- INIT: Initialise les ReplicaSets + enregistre les shards
+
+    init:
+        image: mongo:8
+        container_name: init-cluster
+        depends_on:
+            cfg_svr_1:
+                condition: service_started
+            cfg_svr_2:
+                condition: service_started
+            cfg_svr_3:
+                condition: service_started
+            shardParis_node1:
+                condition: service_started
+            shardParis_node2:
+                condition: service_started
+            shardParis_arbiter:
+                condition: service_started
+            shardLyon_node1:
+                condition: service_started
+            shardLyon_node2:
+                condition: service_started
+            shardLyon_arbiter:
+                condition: service_started
+            mongos:
+                condition: service_healthy
+        volumes:
+            - ./init-cluster.sh:/init-cluster.sh:ro
+        entrypoint: bash
+        command: ["/init-cluster.sh"]
+        restart: "no"
+        networks:
+            - noscites_network
+
+# --- ETL: Pipeline de transformation(python polar+pymongo) ---
+
+    etl:
+        build: .
+        container_name: etl-pipeline
+        depends_on:
+            - init
+        environment:
+            - MONGO_URI=mongodb://mongos:27017
+        networks:
+            - noscites_network
+
+# --- DASHBOARD: Installe et connecte l'application BI Metabase ---
+
+    metabase:
+        image: metabase/metabase
+        container_name: nocites_metabase
+        ports:
+            - "3000:3000"
+        volumes:
+            - metabase_v:/metabase.db
+        depends_on:
+            etl:
+                condition: service_completed_successfully
+        networks:
+            - noscites_network
+
+
+# --- Volumes ---
+
+volumes:
+# Config servers
+    cfg_svr_1_v:
+    cfg_svr_1_vcfg:
+    cfg_svr_2_v:
+    cfg_svr_2_vcfg:
+    cfg_svr_3_v:
+    cfg_svr_3_vcfg:
+
+    # Shard Paris
+    shardParis_node1_v:
+    shardParis_node1_vcfg:
+    shardParis_node2_v:
+    shardParis_node2_vcfg:
+    shardParis_arbiter_v:
+
+    # Shard Lyon
+    shardLyon_node1_v:
+    shardLyon_node1_vcfg:
+    shardLyon_node2_v:
+    shardLyon_node2_vcfg:
+    shardLyon_arbiter_v:
+
+# --- Network ---
+
+networks:
+    noscites_network:
+        name: nocites-network

@@ -1,10 +1,25 @@
+"""
+Sript de transformatioin des datasets *.csv vers insert vers MongoDB ;
+ 
+1. Import 
+2. Mapping
+3. Nettoyage
+4. Cast
+5. Resahpe
+6. Chargement
+
+"""
+
+# ----- Librairies -----
+
 import os
 import polars as pl
 from dotenv import load_dotenv
 from pymongo import MongoClient
 import glob
 
-# 1. Chargement et instance du dataset
+# ----- Import du dataset -----
+
 load_dotenv()
 uri = os.getenv("MONGO_URI")
 client = MongoClient(uri)
@@ -20,7 +35,8 @@ for path in files:
     frames.append(df)
 dfv0 = pl.concat(frames)
 
-# 2. Mapping
+# ----- Mapping -----
+
 TYPE_MAPPING = {
     "Int64": [
         "id",
@@ -204,7 +220,8 @@ FIELD_MAPPING = {
     ],
 }
 
-# 3. Nettoyage NAN, duplcates, col
+# ----- Nettoyage (NAN, duplcates, col, etc.) -----
+
 def clean(dfv0:pl.DataFrame):
     dfv0 = dfv0.with_columns(
     pl.col(pl.String).str.strip_chars().replace("", None)
@@ -216,7 +233,8 @@ def clean(dfv0:pl.DataFrame):
 
 dfv1 = clean(dfv0)
 
-# 4. Casting
+# ----- Casting -----
+
 def cast(dfv1:pl.DataFrame):
     dfv1 = dfv1.with_columns(
         *[pl.col(c).str.replace_all(r"[$,%]", "").cast(pl.Float64, strict=False) for c in TYPE_MAPPING["Float64Specific"]],
@@ -231,7 +249,8 @@ def cast(dfv1:pl.DataFrame):
 
 dfv2 = cast(dfv1)
 
-# 5.Reshape
+# ----- Reshape -----
+
 def reshape(dfv2:pl.DataFrame):
     MAPPING = {name:[c for c in cols if c in dfv2.columns] for name, cols in FIELD_MAPPING.items()}
     dfv2 = dfv2.with_columns(*[pl.struct(cols).alias(name) for name, cols in MAPPING.items() if name != "root"])
@@ -240,7 +259,8 @@ def reshape(dfv2:pl.DataFrame):
 
 dfv3 = reshape(dfv2)
 
-# 6.Chargement
+# ----- Chargement -----
+
 def load(dfv3, client):
     db = client["airbnb"]
     collection = db["listings"]
