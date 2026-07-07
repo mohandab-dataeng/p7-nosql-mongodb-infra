@@ -16,3 +16,4 @@ cols_airbnb.csv
 notes/
 notebooks/
 docker-compose.replicaset.yml
+.vscode/

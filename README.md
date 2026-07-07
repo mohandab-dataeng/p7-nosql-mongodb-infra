@@ -1,6 +1,6 @@
 # NosCites - Pipeline NoSQL MongoDB
 
-Pipeline ETL et infrastructure distribuee pour l'analyse de donnees Airbnb (Paris + Lyon) sur MongoDB.
+Pipeline ETL et infrastructure distribuee pour l'analyse de donnees d'un scraping Airbnb (Paris + Lyon) sur MongoDB.
 
 ## Architecture
 
@@ -20,6 +20,7 @@ docker compose up -d
 
 | Composant | Technologie |
 |-----------|-------------|
+| System | Kubuntu (Noble)|
 | Base de donnees | MongoDB 8 |
 | Langage | Python 3.13 |
 | DataFrame | Polars |
@@ -43,8 +44,8 @@ Source : [Inside Airbnb](http://insideairbnb.com/)
 1. **Extract** - Chargement automatique des CSV via `glob`, extraction de la ville depuis le nom du fichier
 2. **Clean** - Suppression doublons, colonnes vides (>99% null), strip des strings
 3. **Cast** - Typage : Int64, Float64, Boolean, Datetime, List (json_decode)
-4. **Reshape** - 75 colonnes regroupees en 7 sous-documents (struct) + 8 champs root
-5. **Load** - Insertion dans MongoDB via PyMongo (105 858 documents)
+4. **Reshape** - 75 colonnes regroupees en 7 sous-documents (struct) + 8 champs root (à la racine)
+5. **Load** - Insertion dans MongoDB via PyMongo (.insert_many()...105 858 documents)
 
 ## Lancement
 
@@ -58,13 +59,29 @@ cd p7-nosql-mongodb-infra
 
 # Lancer tout le cluster
 docker compose -f docker-compose.cluster.yml up -d
-
-# Acceder a Metabase
-# http://localhost:3000 (MongoDB host: mongos, port: 27017, db: airbnb)
-
-# Acceder a Compass
-# mongodb://localhost:27017
 ```
+
+> **Note** : le cluster est ouvert, sans authentification (pas de keyFile ni d'utilisateur).
+> En production, il faudrait ajouter un keyFile partage entre tous les noeuds + un utilisateur admin.
+
+## Connexion
+
+### Metabase (BI)
+
+1. Ouvrir http://localhost:3000
+2. Creer un compte administrateur
+3. Ajouter une base de donnees :
+   - Type : **MongoDB**
+   - Host : **mongos**
+   - Port : **27017**
+   - Database : **airbnb**
+4. Les donnees sont accessibles dans l'onglet "Nouvelle question"
+
+### Compass (exploration)
+
+- URI : `mongodb://localhost:27017`
+- Base : `airbnb`
+- Collection : `listings`
 
 ## Fichiers
 

@@ -12,6 +12,7 @@ services:
 # 1
     cfg_svr_1:
         image: mongo:8
+        container_name: cfg-svr-1
         command: >
             --configsvr
             --replSet configRS
@@ -28,6 +29,7 @@ services:
 # 2
     cfg_svr_2:
         image: mongo:8
+        container_name: cfg-svr-2
         command: >
             --configsvr
             --replSet configRS
@@ -44,6 +46,7 @@ services:
 # 3
     cfg_svr_3:
         image: mongo:8
+        container_name: cfg-svr-3
         command: >
             --configsvr
             --replSet configRS
@@ -62,7 +65,7 @@ services:
 # Noeud 1
     shardParis_node1:
         image: mongo:8
-        container_name: shardParis_node1
+        container_name: shardParis-node1
         command: >
             --shardsvr
             --replSet shardParisRS
@@ -79,7 +82,7 @@ services:
 # Noeud 2
     shardParis_node2:
         image: mongo:8
-        container_name: shardParis_node2
+        container_name: shardParis-node2
         command: >
             --shardsvr
             --replSet shardParisRS
@@ -114,7 +117,7 @@ services:
 # Noeud 1
     shardLyon_node1:
         image: mongo:8
-        container_name: shardLyon_node1
+        container_name: shardLyon-node1
         command: >
             --shardsvr
             --replSet shardLyonRS
@@ -131,7 +134,7 @@ services:
 # Noeud 2
     shardLyon_node2:
         image: mongo:8
-        container_name: shardLyon_node2
+        container_name: shardLyon-node2
         command: >
             --shardsvr
             --replSet shardLyonRS
@@ -148,7 +151,7 @@ services:
 # Arbitre votant pour le noeud 1 ou 2
     shardLyon_arbiter:
         image: mongo:8
-        container_name: shardLyon_arbiter
+        container_name: shardLyon-arbiter
         command: >
             --shardsvr
             --replSet shardLyonRS
@@ -166,12 +169,12 @@ services:
     mongos:
         image: mongo:8
         healthcheck:
-        test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping')"]
-        interval: 10s
-        timeout: 5s
-        start_period: 15s
-        retries: 5
-        container_name: nocites_router
+            test: ["CMD", "mongosh", "--port", "27017", "--eval", "db.runCommand('ping')"]
+            interval: 10s
+            timeout: 5s
+            start_period: 60s
+            retries: 10
+        container_name: nocites-router
         entrypoint: mongos
         command: >
             --configdb configRS/cfg_svr_1:27018,cfg_svr_2:27019,cfg_svr_3:27020
@@ -251,7 +254,8 @@ services:
 # --- Volumes ---
 
 volumes:
-# Config servers
+
+    # Config servers
     cfg_svr_1_v:
     cfg_svr_1_vcfg:
     cfg_svr_2_v:
@@ -272,6 +276,9 @@ volumes:
     shardLyon_node2_v:
     shardLyon_node2_vcfg:
     shardLyon_arbiter_v:
+
+    # Metabase
+    metabase_v:
 
 # --- Network ---
 
