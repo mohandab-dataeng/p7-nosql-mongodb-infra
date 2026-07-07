@@ -1,6 +1,6 @@
 # --- CLUSTER "nocites" ---
 # Architecture : 3 config servers répliquées +
-#                2 shards (Paris et Lyon = x2 rs + 1 arb)
+#                2 shards (Paris et Lyon = x3 rs)
 #                1 routeur
 #                1 init.sh (bash)
 #                1 pipeline (python)
@@ -60,7 +60,7 @@ services:
         networks :
             - noscites_network
 
-# --- SHARD 1 Paris - shardParis x2 noeuds rs + 1 arbitre ---
+# --- SHARD 1 Paris - shardParis x3 noeuds rs ---
 
 # Noeud 1
     shardParis_node1:
@@ -96,10 +96,10 @@ services:
         networks:
             - noscites_network
 
-# Arbitre votant pour le noeud 1 ou 2
-    shardParis_arbiter:
+# Noeud 3
+    shardParis_node3:
         image: mongo:8
-        container_name: shardParis-arbiter
+        container_name: shardParis-node3
         command: >
             --shardsvr
             --replSet shardParisRS
@@ -108,11 +108,12 @@ services:
         ports:
             - "27033:27033"
         volumes:
-            - shardParis_arbiter_v:/data/db
+            - shardParis_node3_v:/data/db
+            - shardParis_node3_vcfg:/data/configdb
         networks:
             - noscites_network
 
-# --- SHARD 2 Lyon - shardLyon x2 noeuds rs + 1 arbitre ---
+# --- SHARD 2 Lyon - shardLyon x3 noeuds rs ---
 
 # Noeud 1
     shardLyon_node1:
@@ -148,10 +149,10 @@ services:
         networks:
             - noscites_network
 
-# Arbitre votant pour le noeud 1 ou 2
-    shardLyon_arbiter:
+# Noeud 3
+    shardLyon_node3:
         image: mongo:8
-        container_name: shardLyon-arbiter
+        container_name: shardLyon-node3
         command: >
             --shardsvr
             --replSet shardLyonRS
@@ -160,7 +161,8 @@ services:
         ports:
             - "27043:27043"
         volumes:
-            - shardLyon_arbiter_v:/data/db
+            - shardLyon_node3_v:/data/db
+            - shardLyon_node3_vcfg:/data/configdb
         networks:
             - noscites_network
 
@@ -205,16 +207,16 @@ services:
                 condition: service_started
             shardParis_node2:
                 condition: service_started
-            shardParis_arbiter:
+            shardParis_node3:
                 condition: service_started
             shardLyon_node1:
                 condition: service_started
             shardLyon_node2:
                 condition: service_started
-            shardLyon_arbiter:
+            shardLyon_node3:
                 condition: service_started
             mongos:
-                condition: service_healthy
+                condition: service_started
         volumes:
             - ./init-cluster.sh:/init-cluster.sh:ro
         entrypoint: bash
@@ -229,7 +231,8 @@ services:
         build: .
         container_name: etl-pipeline
         depends_on:
-            - init
+            init:
+                condition: service_completed_successfully
         environment:
             - MONGO_URI=mongodb://mongos:27017
         networks:
@@ -268,14 +271,16 @@ volumes:
     shardParis_node1_vcfg:
     shardParis_node2_v:
     shardParis_node2_vcfg:
-    shardParis_arbiter_v:
+    shardParis_node3_v:
+    shardParis_node3_vcfg:
 
     # Shard Lyon
     shardLyon_node1_v:
     shardLyon_node1_vcfg:
     shardLyon_node2_v:
     shardLyon_node2_vcfg:
-    shardLyon_arbiter_v:
+    shardLyon_node3_v:
+    shardLyon_node3_vcfg:
 
     # Metabase
     metabase_v:

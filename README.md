@@ -7,14 +7,14 @@ Pipeline ETL et infrastructure distribuee pour l'analyse de donnees d'un scrapin
 ```
 docker compose up -d
   -> 3 config servers (ReplicaSet configRS)
-  -> 2 shards (Paris + Lyon, chacun 2 noeuds + 1 arbitre)
+  -> 2 shards (Paris + Lyon, chacun 3 noeuds)
   -> 1 routeur mongos (port 27017)
   -> 1 init-cluster.sh (configuration automatique)
   -> 1 ETL pipeline (chargement des donnees)
   -> 1 Metabase (dashboard BI, port 3000)
 ```
 
-12 conteneurs au total.
+14 conteneurs au total.
 
 ## Stack
 
@@ -88,7 +88,7 @@ docker compose -f docker-compose.cluster.yml up -d
 ```
 main.py                      # Pipeline ETL
 Dockerfile                   # Image Python pour l'ETL
-docker-compose.cluster.yml   # Cluster sharde (12 conteneurs)
+docker-compose.cluster.yml   # Cluster sharde (14 conteneurs)
 docker-compose.replicaset.yml # ReplicaSet simple (3 noeuds)
 init-cluster.sh              # Script d'initialisation du cluster
 .env                         # MONGO_URI
@@ -101,4 +101,4 @@ notes/                       # Guides et documentation
 
 - Shard key : `{city: "hashed"}`
 - Distribution uniforme entre les shards
-- Chaque shard est un ReplicaSet (2 noeuds + 1 arbitre)
+- Chaque shard est un ReplicaSet (3 noeuds)
