@@ -1,5 +1,5 @@
 # --- CLUSTER "nocites" ---
-# Architecture : 3 config servers répliquées +
+# Architecture : 3 config servers répliquées
 #                2 shards (Paris et Lyon = x3 rs)
 #                1 routeur
 #                1 init.sh (bash)
@@ -225,7 +225,7 @@ services:
         networks:
             - noscites_network
 
-# --- ETL: Pipeline de transformation(python polar+pymongo) ---
+# --- ETL: Pipeline de transformation(python polar+pymongo) => main.py ---
 
     etl:
         build: .
