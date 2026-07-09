@@ -47,5 +47,5 @@ mongosh --host mongos --port 27017 --eval '
 sh.addShard("shardParisRS/shardParis_node1:27031,shardParis_node2:27032,shardParis_node3:27033")
 sh.addShard("shardLyonRS/shardLyon_node1:27041,shardLyon_node2:27042,shardLyon_node3:27043")
 sh.enableSharding("airbnb")
-sh.shardCollection("airbnb.listings", {city: "hashed"}) 
+sh.shardCollection("airbnb.listings", {city: 1}) 
 '
