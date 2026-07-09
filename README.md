@@ -5,13 +5,48 @@ Pipeline ETL et infrastructure distribuee pour l'analyse de donnees d'un scrapin
 ## Architecture
 
 ```
-docker compose up -d
-  -> 3 config servers (ReplicaSet configRS)
-  -> 2 shards (Paris + Lyon, chacun 3 noeuds)
-  -> 1 routeur mongos (port 27017)
-  -> 1 init-cluster.sh (configuration automatique)
-  -> 1 ETL pipeline (chargement des donnees)
-  -> 1 Metabase (dashboard BI, port 3000)
+                            nocites-network
+ ┌─────────────────────────────────────────────────────────────────────────┐
+ │                                                                         │
+ │  ┌─── configRS (table de routage) ───────────────────────────────────┐  │
+ │  │  cfg-svr-1        cfg-svr-2        cfg-svr-3                     │  │
+ │  │  mongod            mongod            mongod                       │  │
+ │  │  27018:27018       27019:27019       27020:27020                  │  │
+ │  │  permanent         permanent         permanent                    │  │
+ │  └───────────────────────────────────────────────────────────────────┘  │
+ │          |                                                              │
+ │          v                                                              │
+ │  ┌─────────────────┐                                                    │
+ │  │ nocites-router   │     ┌─── shardParisRS (donnees Paris) ─────────┐  │
+ │  │ mongos           │────>│ shardParis-node1  node2       node3      │  │
+ │  │ 27017:27017      │     │ mongod            mongod      mongod     │  │
+ │  │ permanent        │     │ 27031:27031       27032:27032 27033:27033│  │
+ │  │                  │     │ permanent         permanent   permanent  │  │
+ │  │                  │     └──────────────────────────────────────────┘  │
+ │  │                  │                                                    │
+ │  │                  │     ┌─── shardLyonRS (donnees Lyon) ────────────┐  │
+ │  │                  │────>│ shardLyon-node1   node2       node3      │  │
+ │  │                  │     │ mongod            mongod      mongod     │  │
+ │  └─────────────────┘     │ 27041:27041       27042:27042 27043:27043│  │
+ │          ^                │ permanent         permanent   permanent  │  │
+ │          |                └──────────────────────────────────────────┘  │
+ │          |                                                              │
+ │  ┌───────────────┐   ┌───────────────────┐   ┌───────────────────────┐  │
+ │  │ init-cluster   │──>│ etl-pipeline      │──>│ nocites_metabase      │  │
+ │  │ bash > mongosh │   │ python (main.py)  │   │ BI dashboard          │  │
+ │  │ bootstrap      │   │ 27017:27017       │   │ 3000:3000             │  │
+ │  │ temporaire     │   │ temporaire        │   │ permanent             │  │
+ │  └───────────────┘   └───────────────────┘   └───────────────────────┘  │
+ │                                                                         │
+ └─────────────────────────────────────────────────────────────────────────┘
+
+ Ordre de demarrage :
+ 1. docker compose up -d
+ 2. 9 noeuds MongoDB (cfg + shards) demarrent en parallele
+ 3. mongos demarre (lit la config dans configRS)
+ 4. init-cluster.sh bootstrap le cluster (rs.initiate + sh.addShard)
+ 5. ETL charge les 105 858 documents via mongos
+ 6. Metabase demarre (dashboard BI)
 ```
 
 14 conteneurs au total.
