@@ -1,7 +1,7 @@
 [project]
 name = "p7-nosql-mongodb-infra"
 version = "0.1.0"
-description = "Add your description here"
+description = "Projet de creation d'une maquette d'une infrastructure complete mongodb"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
